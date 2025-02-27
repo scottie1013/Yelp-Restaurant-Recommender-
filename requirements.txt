@@ -1,6 +1,8 @@
 streamlit
 pyspark
-xgboost
-scikit-learn
-numpy
 pandas
+numpy
+scikit-learn
+matplotlib
+pillow
+requests
