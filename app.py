@@ -492,7 +492,17 @@ def get_top_recommendations_for_user(user_id, data_folder, model_path, scaler_pa
         st.error(f"Error getting recommendations: {str(e)}")
         return []
 
-# Make prediction function
+# Add this function to create a dummy scaler
+def create_dummy_scaler():
+    """Create a dummy scaler that does nothing"""
+    class DummyScaler:
+        def transform(self, X):
+            return X
+        def inverse_transform(self, X):
+            return X
+    return DummyScaler()
+
+# Then update your make_prediction function
 def make_prediction(user_id, business_id, data_folder, model_path, scaler_path):
     """Make a prediction for a user-business pair with robust fallback"""
     try:
@@ -513,8 +523,13 @@ def make_prediction(user_id, business_id, data_folder, model_path, scaler_path):
         # Load model and scaler
         model, scaler = load_model_and_scaler(model_path, scaler_path)
         
-        # If model or scaler couldn't be loaded, use fallback
-        if model is None or scaler is None:
+        # If scaler couldn't be loaded, use a dummy scaler
+        if scaler is None:
+            st.warning("Using dummy scaler")
+            scaler = create_dummy_scaler()
+        
+        # If model couldn't be loaded, use fallback
+        if model is None:
             st.warning("Using fallback prediction method since model couldn't be loaded")
             
             # Use a more sophisticated fallback that considers user and business ratings
@@ -807,8 +822,29 @@ def load_model_and_scaler(model_path, scaler_path):
     try:
         # Check if model file exists and has content
         if os.path.exists(model_path) and os.path.getsize(model_path) > 0:
-            model = joblib.load(model_path)
-            st.success("Successfully loaded model")
+            try:
+                # Try loading with joblib first
+                model = joblib.load(model_path)
+            except Exception as joblib_error:
+                st.warning(f"Joblib loading failed: {str(joblib_error)}")
+                try:
+                    # Try loading with pickle as fallback
+                    import pickle
+                    with open(model_path, 'rb') as f:
+                        model = pickle.load(f)
+                except Exception as pickle_error:
+                    st.error(f"Pickle loading also failed: {str(pickle_error)}")
+                    # Try XGBoost specific loading
+                    try:
+                        from xgboost import XGBRegressor
+                        model = XGBRegressor()
+                        model.load_model(model_path)
+                    except Exception as xgb_error:
+                        st.error(f"XGBoost loading failed: {str(xgb_error)}")
+                        raise
+            
+            if model is not None:
+                st.success("Successfully loaded model")
         else:
             st.error(f"Model file not found or empty: {model_path}")
     except Exception as e:
@@ -817,8 +853,21 @@ def load_model_and_scaler(model_path, scaler_path):
     try:
         # Check if scaler file exists and has content
         if os.path.exists(scaler_path) and os.path.getsize(scaler_path) > 0:
-            scaler = joblib.load(scaler_path)
-            st.success("Successfully loaded scaler")
+            try:
+                # Try loading with joblib
+                scaler = joblib.load(scaler_path)
+            except Exception as joblib_error:
+                st.warning(f"Joblib loading failed for scaler: {str(joblib_error)}")
+                # Try pickle as fallback
+                try:
+                    import pickle
+                    with open(scaler_path, 'rb') as f:
+                        scaler = pickle.load(f)
+                except Exception as pickle_error:
+                    st.error(f"Pickle loading also failed for scaler: {str(pickle_error)}")
+            
+            if scaler is not None:
+                st.success("Successfully loaded scaler")
         else:
             st.error(f"Scaler file not found or empty: {scaler_path}")
     except Exception as e:

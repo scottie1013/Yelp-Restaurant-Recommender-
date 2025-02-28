@@ -6,4 +6,4 @@ xgboost
 pillow
 requests
 huggingface_hub
-datasets
+scikit-learn
