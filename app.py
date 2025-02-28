@@ -543,17 +543,26 @@ def make_prediction(user_id, business_id, data_folder, model_path, scaler_path):
             display_prediction_result(predicted_rating)
             return
         
-        # If we have the model, continue with your existing prediction code
-        # ...rest of your prediction code...
+        # Extract features for prediction
+        features = extract_features(user_data, business_data, user_tips, business_tips)
         
+        if features is not None:
+            # Transform features using scaler
+            scaled_features = scaler.transform([features])
+            
+            # Make prediction
+            prediction = model.predict(scaled_features)[0]
+            
+            # Ensure prediction is within valid range
+            predicted_rating = max(1.0, min(5.0, prediction))
+            
+            # Display the prediction result
+            display_prediction_result(predicted_rating)
+        else:
+            st.error("Could not extract features for prediction")
     except Exception as e:
         st.error(f"Error making prediction: {str(e)}")
         st.error(f"Traceback: {traceback.format_exc()}")
-        
-        # Fallback to a random prediction
-        st.warning("Using fallback prediction method")
-        predicted_rating = random.uniform(3.0, 5.0)  # Random rating between 3 and 5
-        display_prediction_result(predicted_rating)
 
 def process_user_features(user, global_stats):
     """Process individual user features"""
@@ -876,28 +885,21 @@ def load_model_and_scaler(model_path, scaler_path):
     return model, scaler
 
 def display_prediction_result(predicted_rating):
-    """Display the prediction result"""
-    st.markdown('<div class="prediction-result">', unsafe_allow_html=True)
-    st.markdown('<h3>Predicted Rating</h3>', unsafe_allow_html=True)
-    st.markdown(f'<div class="prediction-value">{predicted_rating:.1f}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="star-rating-large">{display_stars(predicted_rating)}</div>', unsafe_allow_html=True)
-    
-    # Add interpretation
-    if predicted_rating >= 4.5:
-        message = "This user would love this restaurant!"
-    elif predicted_rating >= 4.0:
-        message = "This user would really like this restaurant."
-    elif predicted_rating >= 3.5:
-        message = "This user would enjoy this restaurant."
-    elif predicted_rating >= 3.0:
-        message = "This user would find this restaurant acceptable."
-    elif predicted_rating >= 2.0:
-        message = "This user might be disappointed with this restaurant."
-    else:
-        message = "This user would probably not enjoy this restaurant."
-    
-    st.markdown(f'<div class="prediction-message">{message}</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    """Display the prediction result with stars and explanation"""
+    st.markdown("""
+    <div class="prediction-result">
+        <h2 style="text-align: center;">Predicted Rating</h2>
+        <div class="prediction-value">
+            {:.1f}
+        </div>
+        <div style="text-align: center; font-size: 2rem;">
+            {}
+        </div>
+        <p style="text-align: center; margin-top: 1rem;">
+            This is the predicted rating based on the user's preferences and the restaurant's characteristics.
+        </p>
+    </div>
+    """.format(predicted_rating, display_stars(predicted_rating)), unsafe_allow_html=True)
 
 def display_business_info(business):
     """Display business information"""
