@@ -225,22 +225,26 @@ def get_random_food_image():
 
 # Helper function to display star ratings
 def display_stars(rating):
+    """Convert a numeric rating to a star display with improved visibility"""
     full_stars = int(rating)
     half_star = rating - full_stars >= 0.5
-    empty_stars = 5 - full_stars - (1 if half_star else 0)
     
-    stars_html = ""
-    # Full stars
-    for _ in range(full_stars):
+    stars_html = '<div style="color: gold; font-size: 2.5rem; letter-spacing: 5px;">'
+    
+    # Add full stars
+    for i in range(full_stars):
         stars_html += "★"
     
-    # Half star
+    # Add half star if needed
     if half_star:
         stars_html += "½"
     
-    # Empty stars
-    for _ in range(empty_stars):
+    # Add empty stars
+    empty_stars = 5 - full_stars - (1 if half_star else 0)
+    for i in range(empty_stars):
         stars_html += "☆"
+    
+    stars_html += '</div>'
     
     return stars_html
 
