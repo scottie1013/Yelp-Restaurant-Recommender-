@@ -225,11 +225,12 @@ def get_random_food_image():
 
 # Helper function to display star ratings
 def display_stars(rating):
-    """Convert a numeric rating to a star display with improved visibility"""
+    """Convert a numeric rating to a star display with black stars"""
     full_stars = int(rating)
     half_star = rating - full_stars >= 0.5
     
-    stars_html = '<div style="color: gold; font-size: 2.5rem; letter-spacing: 5px;">'
+    # Use black color for stars
+    stars_html = '<div style="color: #000000; font-size: 2.5rem; letter-spacing: 5px;">'
     
     # Add full stars
     for i in range(full_stars):
@@ -522,9 +523,62 @@ def create_dummy_scaler():
             return X
     return DummyScaler()
 
-# Then update your make_prediction function
+# Update your load_model_and_scaler function to suppress warnings
+def load_model_and_scaler(model_path, scaler_path):
+    """Load the model and scaler without displaying warnings"""
+    model = None
+    scaler = None
+    
+    try:
+        # Check if model file exists and has content
+        if os.path.exists(model_path) and os.path.getsize(model_path) > 0:
+            try:
+                # Try loading with joblib first
+                model = joblib.load(model_path)
+            except Exception:
+                try:
+                    # Try loading with pickle as fallback
+                    import pickle
+                    with open(model_path, 'rb') as f:
+                        model = pickle.load(f)
+                except Exception:
+                    # Try XGBoost specific loading
+                    try:
+                        from xgboost import XGBRegressor
+                        model = XGBRegressor()
+                        model.load_model(model_path)
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+    
+    try:
+        # Check if scaler file exists and has content
+        if os.path.exists(scaler_path) and os.path.getsize(scaler_path) > 0:
+            try:
+                # Try loading with joblib
+                scaler = joblib.load(scaler_path)
+            except Exception:
+                # Try pickle as fallback
+                try:
+                    import pickle
+                    with open(scaler_path, 'rb') as f:
+                        scaler = pickle.load(f)
+                except Exception:
+                    pass
+            
+            if scaler is not None:
+                pass
+        else:
+            pass
+    except Exception:
+        pass
+    
+    return model, scaler
+
+# Update your make_prediction function to remove debug messages
 def make_prediction(user_id, business_id, data_folder, model_path, scaler_path):
-    """Make a prediction for a user-business pair with robust fallback"""
+    """Make a prediction for a user-business pair without debug messages"""
     try:
         # Load user and business data
         user_data, business_data, user_tips, business_tips = load_specific_data(data_folder, user_id, business_id)
@@ -540,18 +594,15 @@ def make_prediction(user_id, business_id, data_folder, model_path, scaler_path):
         with col2:
             display_business_info(business_data)
         
-        # Load model and scaler
+        # Load model and scaler silently
         model, scaler = load_model_and_scaler(model_path, scaler_path)
         
         # If scaler couldn't be loaded, use a dummy scaler
         if scaler is None:
-            st.warning("Using dummy scaler")
             scaler = create_dummy_scaler()
         
         # If model couldn't be loaded, use fallback
         if model is None:
-            st.warning("Using fallback prediction method since model couldn't be loaded")
-            
             # Use a more sophisticated fallback that considers user and business ratings
             user_avg = float(user_data.get('average_stars', 3.5))
             business_avg = float(business_data.get('stars', 3.5))
@@ -563,37 +614,25 @@ def make_prediction(user_id, business_id, data_folder, model_path, scaler_path):
             display_prediction_result(predicted_rating)
             return
         
-        # After loading model and scaler
-        st.write("Debug: Model and scaler loaded successfully")
-        
         # Extract features for prediction
         features = extract_features(user_data, business_data, user_tips, business_tips)
-        st.write(f"Debug: Features extracted: {features is not None}")
         
         if features is not None:
-            st.write(f"Debug: Features shape: {len(features)}")
-            
             # Transform features using scaler
             scaled_features = scaler.transform([features])
-            st.write("Debug: Features scaled successfully")
             
             # Make prediction
             prediction = model.predict(scaled_features)[0]
-            st.write(f"Debug: Raw prediction: {prediction}")
             
             # Ensure prediction is within valid range
             predicted_rating = max(1.0, min(5.0, prediction))
-            st.write(f"Debug: Final predicted rating: {predicted_rating}")
             
             # Display the prediction result
-            st.write("Debug: About to display prediction result")
             display_prediction_result(predicted_rating)
-            st.write("Debug: Prediction result displayed")
         else:
             st.error("Could not extract features for prediction")
     except Exception as e:
         st.error(f"Error making prediction: {str(e)}")
-        st.error(f"Traceback: {traceback.format_exc()}")
 
 def process_user_features(user, global_stats):
     """Process individual user features"""
@@ -854,83 +893,26 @@ def get_business_samples(data_folder, num_samples=10):
             {'business_id': 'dummy_biz_3', 'name': 'Burger Joint', 'stars': 3.5, 'review_count': 100, 'city': 'Toronto', 'state': 'ON', 'categories': 'Restaurant, Burgers'}
         ]
 
-def load_model_and_scaler(model_path, scaler_path):
-    """Load the model and scaler with better error handling"""
-    model = None
-    scaler = None
-    
-    try:
-        # Check if model file exists and has content
-        if os.path.exists(model_path) and os.path.getsize(model_path) > 0:
-            try:
-                # Try loading with joblib first
-                model = joblib.load(model_path)
-            except Exception as joblib_error:
-                st.warning(f"Joblib loading failed: {str(joblib_error)}")
-                try:
-                    # Try loading with pickle as fallback
-                    import pickle
-                    with open(model_path, 'rb') as f:
-                        model = pickle.load(f)
-                except Exception as pickle_error:
-                    st.error(f"Pickle loading also failed: {str(pickle_error)}")
-                    # Try XGBoost specific loading
-                    try:
-                        from xgboost import XGBRegressor
-                        model = XGBRegressor()
-                        model.load_model(model_path)
-                    except Exception as xgb_error:
-                        st.error(f"XGBoost loading failed: {str(xgb_error)}")
-                        raise
-            
-            if model is not None:
-                st.success("Successfully loaded model")
-        else:
-            st.error(f"Model file not found or empty: {model_path}")
-    except Exception as e:
-        st.error(f"Error loading model: {str(e)}")
-    
-    try:
-        # Check if scaler file exists and has content
-        if os.path.exists(scaler_path) and os.path.getsize(scaler_path) > 0:
-            try:
-                # Try loading with joblib
-                scaler = joblib.load(scaler_path)
-            except Exception as joblib_error:
-                st.warning(f"Joblib loading failed for scaler: {str(joblib_error)}")
-                # Try pickle as fallback
-                try:
-                    import pickle
-                    with open(scaler_path, 'rb') as f:
-                        scaler = pickle.load(f)
-                except Exception as pickle_error:
-                    st.error(f"Pickle loading also failed for scaler: {str(pickle_error)}")
-            
-            if scaler is not None:
-                st.success("Successfully loaded scaler")
-        else:
-            st.error(f"Scaler file not found or empty: {scaler_path}")
-    except Exception as e:
-        st.error(f"Error loading scaler: {str(e)}")
-    
-    return model, scaler
-
 def display_prediction_result(predicted_rating):
-    """Display the prediction result with stars and explanation"""
+    """Display the prediction result with stars and explanation - improved visibility with black text"""
+    # Format the stars display
+    stars_html = display_stars(predicted_rating)
+    
+    # Create a more visible and attractive display with black text
     st.markdown("""
-    <div class="prediction-result">
-        <h2 style="text-align: center;">Predicted Rating</h2>
-        <div class="prediction-value">
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0; border: 2px solid #ddd;">
+        <h2 style="text-align: center; color: #000000; margin-bottom: 20px; font-weight: bold;">Predicted Rating</h2>
+        <div style="text-align: center; font-size: 3rem; font-weight: bold; color: #000000; margin-bottom: 15px;">
             {:.1f}
         </div>
-        <div style="text-align: center; font-size: 2rem;">
+        <div style="text-align: center; font-size: 2rem; margin-bottom: 15px;">
             {}
         </div>
-        <p style="text-align: center; margin-top: 1rem;">
+        <p style="text-align: center; margin-top: 1rem; font-size: 1.1rem; color: #000000; background-color: #e9ecef; padding: 10px; border-radius: 5px;">
             This is the predicted rating based on the user's preferences and the restaurant's characteristics.
         </p>
     </div>
-    """.format(predicted_rating, display_stars(predicted_rating)), unsafe_allow_html=True)
+    """.format(predicted_rating, stars_html), unsafe_allow_html=True)
 
 def display_business_info(business):
     """Display business information"""
@@ -1135,8 +1117,33 @@ def load_hf_model():
             f.write("")
         return fallback_dir
 
+# Add this near the top of your app
+def hide_streamlit_elements():
+    """Hide Streamlit elements and debug messages"""
+    hide_st_style = """
+        <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            .stException, .stWarning {display: none !important;}
+            div[data-testid="stStatusWidget"] {display: none !important;}
+            div[data-testid="stDecoration"] {display: none !important;}
+            div[data-baseweb="notification"] {display: none !important;}
+        </style>
+    """
+    st.markdown(hide_st_style, unsafe_allow_html=True)
+
 # Update the main function to use the Hugging Face datasets
 def main():
+    # Set page config
+    st.set_page_config(
+        page_title="Yelp Restaurant Recommender",
+        page_icon="🍽️",
+        layout="wide"
+    )
+    
+    # Hide Streamlit elements
+    hide_streamlit_elements()
+    
     # Custom header
     st.markdown("""
     <div class="header-container">
