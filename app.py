@@ -225,12 +225,12 @@ def get_random_food_image():
 
 # Helper function to display star ratings
 def display_stars(rating):
-    """Convert a numeric rating to a star display with black stars"""
+    """Convert a numeric rating to a star display with yellow stars"""
     full_stars = int(rating)
     half_star = rating - full_stars >= 0.5
     
-    # Use black color for stars
-    stars_html = '<div style="color: #000000; font-size: 2.5rem; letter-spacing: 5px;">'
+    # Use yellow/gold color for stars
+    stars_html = '<div style="color: #FFD700; font-size: 2.5rem; letter-spacing: 5px;">'
     
     # Add full stars
     for i in range(full_stars):
@@ -894,25 +894,43 @@ def get_business_samples(data_folder, num_samples=10):
         ]
 
 def display_prediction_result(predicted_rating):
-    """Display the prediction result with stars and explanation - improved visibility with black text"""
+    """
+    Display the prediction result with yellow stars and explanation
+    - Color-coded rating (red for low, yellow for medium, green for high)
+    - Personalized recommendation message based on rating
+    """
     # Format the stars display
     stars_html = display_stars(predicted_rating)
     
-    # Create a more visible and attractive display with black text
-    st.markdown("""
-    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0; border: 2px solid #ddd;">
+    # Determine color and message based on rating
+    if predicted_rating < 2.5:
+        color = "#d9534f"  # Red for low ratings
+        message = "Based on this user's preferences, they probably won't enjoy this restaurant."
+    elif predicted_rating < 3.5:
+        color = "#f0ad4e"  # Yellow/Orange for medium ratings
+        message = "This restaurant might be acceptable for this user, but it's not an ideal match."
+    else:
+        color = "#5cb85c"  # Green for high ratings
+        message = "This restaurant is a great match for this user's preferences!"
+    
+    # Create a more visible and attractive display with color-coded rating
+    st.markdown(f"""
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0; border: 2px solid {color};">
         <h2 style="text-align: center; color: #000000; margin-bottom: 20px; font-weight: bold;">Predicted Rating</h2>
-        <div style="text-align: center; font-size: 3rem; font-weight: bold; color: #000000; margin-bottom: 15px;">
-            {:.1f}
+        <div style="text-align: center; font-size: 3.5rem; font-weight: bold; color: {color}; margin-bottom: 15px;">
+            {predicted_rating:.1f}
         </div>
-        <div style="text-align: center; font-size: 2rem; margin-bottom: 15px;">
-            {}
+        <div style="text-align: center; font-size: 2.5rem; margin-bottom: 15px;">
+            {stars_html}
         </div>
-        <p style="text-align: center; margin-top: 1rem; font-size: 1.1rem; color: #000000; background-color: #e9ecef; padding: 10px; border-radius: 5px;">
+        <p style="text-align: center; margin-top: 1rem; font-size: 1.2rem; color: #000000; background-color: #e9ecef; padding: 10px; border-radius: 5px;">
+            {message}
+        </p>
+        <p style="text-align: center; margin-top: 0.5rem; font-size: 0.9rem; color: #6c757d;">
             This is the predicted rating based on the user's preferences and the restaurant's characteristics.
         </p>
     </div>
-    """.format(predicted_rating, stars_html), unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 def display_business_info(business):
     """Display business information"""
