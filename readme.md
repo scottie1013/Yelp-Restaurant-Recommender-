@@ -186,7 +186,7 @@ The model predicts a rating on a scale of 1-5 stars that represents how much a s
 - Deployment on a cloud-based Spark cluster for improved performance
 
 ## Contributors
-- [Your Name/Team]
+- Shihao Wang
 
 ## License
 This project uses data from the Yelp Dataset Challenge, which is subject to Yelp's terms of use.
