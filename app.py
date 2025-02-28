@@ -1117,33 +1117,8 @@ def load_hf_model():
             f.write("")
         return fallback_dir
 
-# Add this near the top of your app
-def hide_streamlit_elements():
-    """Hide Streamlit elements and debug messages"""
-    hide_st_style = """
-        <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            .stException, .stWarning {display: none !important;}
-            div[data-testid="stStatusWidget"] {display: none !important;}
-            div[data-testid="stDecoration"] {display: none !important;}
-            div[data-baseweb="notification"] {display: none !important;}
-        </style>
-    """
-    st.markdown(hide_st_style, unsafe_allow_html=True)
-
 # Update the main function to use the Hugging Face datasets
 def main():
-    # Set page config
-    st.set_page_config(
-        page_title="Yelp Restaurant Recommender",
-        page_icon="🍽️",
-        layout="wide"
-    )
-    
-    # Hide Streamlit elements
-    hide_streamlit_elements()
-    
     # Custom header
     st.markdown("""
     <div class="header-container">
