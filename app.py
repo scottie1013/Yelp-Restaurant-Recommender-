@@ -307,48 +307,64 @@ def get_global_stats(folder_path):
 
 # Optimized data loading function
 @st.cache_data
-def load_specific_data(folder_path, user_id, business_id):
+def load_specific_data(data_folder, user_id, business_id):
+    """Load specific user and business data"""
+    user_data = None
+    business_data = None
+    user_tips = []
+    business_tips = []
+    
     try:
-        user_data = None
-        business_data = None
-        user_tips = []
-        business_tips = []
-        
-        # Load only the specific user
-        user_path = os.path.join(folder_path, "user.json")
-        if os.path.exists(user_path):
-            with open(user_path, 'r') as f:
+        # Load user data
+        user_file = f"{data_folder}/user.json"
+        if os.path.exists(user_file):
+            with open(user_file, 'r') as f:
                 for line in f:
-                    user = json.loads(line)
-                    if user['user_id'] == user_id:
-                        user_data = user
-                        break
+                    if not line.strip():
+                        continue
+                    try:
+                        data = json.loads(line)
+                        if data.get('user_id') == user_id:
+                            user_data = data
+                            break
+                    except json.JSONDecodeError:
+                        continue
         
-        # Load only the specific business
-        business_path = os.path.join(folder_path, "business.json")
-        if os.path.exists(business_path):
-            with open(business_path, 'r') as f:
+        # Load business data
+        business_file = f"{data_folder}/business.json"
+        if os.path.exists(business_file):
+            with open(business_file, 'r') as f:
                 for line in f:
-                    business = json.loads(line)
-                    if business['business_id'] == business_id:
-                        business_data = business
-                        break
+                    if not line.strip():
+                        continue
+                    try:
+                        data = json.loads(line)
+                        if data.get('business_id') == business_id:
+                            business_data = data
+                            break
+                    except json.JSONDecodeError:
+                        continue
         
-        # Load only relevant tips
-        tip_path = os.path.join(folder_path, "tip.json")
-        if os.path.exists(tip_path):
-            with open(tip_path, 'r') as f:
+        # Load tips
+        tip_file = f"{data_folder}/tip.json"
+        if os.path.exists(tip_file):
+            with open(tip_file, 'r') as f:
                 for line in f:
-                    tip = json.loads(line)
-                    if tip['user_id'] == user_id or tip['business_id'] == business_id:
-                        if tip['user_id'] == user_id:
-                            user_tips.append(tip)
-                        if tip['business_id'] == business_id:
-                            business_tips.append(tip)
+                    if not line.strip():
+                        continue
+                    try:
+                        data = json.loads(line)
+                        if data.get('user_id') == user_id:
+                            user_tips.append(data)
+                        if data.get('business_id') == business_id:
+                            business_tips.append(data)
+                    except json.JSONDecodeError:
+                        continue
         
         return user_data, business_data, user_tips, business_tips
+    
     except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
+        st.error(f"Error loading specific data: {str(e)}")
         return None, None, [], []
 
 # Get actual user and business IDs from your dataset
@@ -1357,6 +1373,81 @@ def cleanup_temp_dirs():
 # Register cleanup function (optional)
 import atexit
 atexit.register(cleanup_temp_dirs)
+
+# Add this function to your code
+def extract_features(user_data, business_data, user_tips, business_tips):
+    """Extract features for prediction from user and business data"""
+    try:
+        # Create a feature vector based on user and business attributes
+        features = []
+        
+        # User features
+        user_review_count = float(user_data.get('review_count', 0))
+        user_average_stars = float(user_data.get('average_stars', 3.0))
+        user_useful = float(user_data.get('useful', 0))
+        user_funny = float(user_data.get('funny', 0))
+        user_cool = float(user_data.get('cool', 0))
+        user_fans = float(user_data.get('fans', 0))
+        
+        # Business features
+        business_review_count = float(business_data.get('review_count', 0))
+        business_stars = float(business_data.get('stars', 3.0))
+        
+        # Add features to the vector
+        features.extend([
+            user_review_count,
+            user_average_stars,
+            user_useful,
+            user_funny,
+            user_cool,
+            user_fans,
+            business_review_count,
+            business_stars
+        ])
+        
+        # Add business attributes as binary features
+        attributes = business_data.get('attributes', {})
+        if isinstance(attributes, dict):
+            # Common attributes to check
+            attribute_keys = [
+                'BusinessAcceptsCreditCards',
+                'RestaurantsPriceRange2',
+                'WiFi',
+                'OutdoorSeating',
+                'BikeParking',
+                'HasTV',
+                'RestaurantsDelivery',
+                'RestaurantsTakeOut',
+                'GoodForKids'
+            ]
+            
+            for key in attribute_keys:
+                # Add 1 if attribute exists and is True, 0 otherwise
+                if key in attributes:
+                    value = attributes[key]
+                    if isinstance(value, bool):
+                        features.append(1.0 if value else 0.0)
+                    elif isinstance(value, str) and value.lower() in ['true', 'yes', 'free']:
+                        features.append(1.0)
+                    else:
+                        features.append(0.0)
+                else:
+                    features.append(0.0)
+        
+        # Add number of tips as a feature
+        features.append(float(len(user_tips) if user_tips else 0))
+        features.append(float(len(business_tips) if business_tips else 0))
+        
+        # Add interaction features
+        features.append(user_average_stars * business_stars)  # User-business rating interaction
+        features.append(user_review_count * business_review_count)  # Review count interaction
+        
+        return features
+    
+    except Exception as e:
+        st.error(f"Error extracting features: {str(e)}")
+        st.error(f"Traceback: {traceback.format_exc()}")
+        return None
 
 if __name__ == "__main__":
     main()
