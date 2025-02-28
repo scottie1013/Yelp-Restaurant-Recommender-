@@ -543,21 +543,32 @@ def make_prediction(user_id, business_id, data_folder, model_path, scaler_path):
             display_prediction_result(predicted_rating)
             return
         
+        # After loading model and scaler
+        st.write("Debug: Model and scaler loaded successfully")
+        
         # Extract features for prediction
         features = extract_features(user_data, business_data, user_tips, business_tips)
+        st.write(f"Debug: Features extracted: {features is not None}")
         
         if features is not None:
+            st.write(f"Debug: Features shape: {len(features)}")
+            
             # Transform features using scaler
             scaled_features = scaler.transform([features])
+            st.write("Debug: Features scaled successfully")
             
             # Make prediction
             prediction = model.predict(scaled_features)[0]
+            st.write(f"Debug: Raw prediction: {prediction}")
             
             # Ensure prediction is within valid range
             predicted_rating = max(1.0, min(5.0, prediction))
+            st.write(f"Debug: Final predicted rating: {predicted_rating}")
             
             # Display the prediction result
+            st.write("Debug: About to display prediction result")
             display_prediction_result(predicted_rating)
+            st.write("Debug: Prediction result displayed")
         else:
             st.error("Could not extract features for prediction")
     except Exception as e:
