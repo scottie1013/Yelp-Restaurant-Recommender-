@@ -12,6 +12,9 @@ from PIL import Image
 import requests
 from io import BytesIO
 import traceback
+from datasets import load_dataset
+import tempfile
+import shutil
 
 # Set page configuration
 st.set_page_config(
@@ -930,6 +933,67 @@ def display_user_info(user):
     
     st.markdown('</div>', unsafe_allow_html=True)
 
+# Replace the data loading functions with Hugging Face dataset loading
+@st.cache_resource
+def load_hf_datasets():
+    """Load datasets from Hugging Face"""
+    try:
+        # Replace with your actual Hugging Face dataset repository
+        dataset_repo = "Shihao2/Yelp-Recommender"
+        
+        # Load the datasets
+        user_dataset = load_dataset(dataset_repo, "user", split="train")
+        business_dataset = load_dataset(dataset_repo, "business", split="train")
+        tip_dataset = load_dataset(dataset_repo, "tip", split="train")
+        
+        # Create a temporary directory to store the data in the expected format
+        temp_dir = tempfile.mkdtemp()
+        
+        # Convert datasets to the expected file format
+        with open(f"{temp_dir}/user.json", 'w') as f:
+            for user in user_dataset:
+                f.write(json.dumps(user) + '\n')
+                
+        with open(f"{temp_dir}/business.json", 'w') as f:
+            for business in business_dataset:
+                f.write(json.dumps(business) + '\n')
+                
+        with open(f"{temp_dir}/tip.json", 'w') as f:
+            for tip in tip_dataset:
+                f.write(json.dumps(tip) + '\n')
+        
+        return temp_dir
+    except Exception as e:
+        st.error(f"Error loading datasets from Hugging Face: {str(e)}")
+        st.error(f"Traceback: {traceback.format_exc()}")
+        return "./data/sample"  # Fallback to local path if available
+
+# Load model from Hugging Face
+@st.cache_resource
+def load_hf_model():
+    """Load model from Hugging Face"""
+    try:
+        # Replace with your actual Hugging Face model repository
+        model_repo = "YOUR_USERNAME/yelp-restaurant-model"
+        
+        # Create a temporary directory for the model
+        temp_dir = tempfile.mkdtemp()
+        
+        # Download the model files
+        model_files = load_dataset(model_repo, split="train")
+        
+        # Save the model files to the temp directory
+        for file_data in model_files:
+            with open(f"{temp_dir}/{file_data['filename']}", 'wb') as f:
+                f.write(file_data['content'])
+        
+        return temp_dir
+    except Exception as e:
+        st.error(f"Error loading model from Hugging Face: {str(e)}")
+        st.error(f"Traceback: {traceback.format_exc()}")
+        return "./data/result/model"  # Fallback to local path if available
+
+# Update the main function to use the Hugging Face datasets
 def main():
     # Custom header
     st.markdown("""
@@ -939,9 +1003,9 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Paths to model and data files
-    data_folder = "./data/sample"
-    model_base_path = "./data/result/model"
+    # Load data and model from Hugging Face
+    data_folder = load_hf_datasets()
+    model_base_path = load_hf_model()
     model_path = model_base_path  # XGBoost model file
     scaler_path = f"{model_base_path}_scaler.pkl"  # Scaler file
     
@@ -1147,6 +1211,16 @@ def main():
         <p>This is a demonstration app and not affiliated with Yelp Inc.</p>
     </div>
     """, unsafe_allow_html=True)
+
+# Make sure to clean up temporary directories when the app exits
+def cleanup_temp_dirs():
+    # This function would be called when the app exits
+    # But Streamlit handles this automatically for cached resources
+    pass
+
+# Register cleanup function (optional)
+import atexit
+atexit.register(cleanup_temp_dirs)
 
 if __name__ == "__main__":
     main()
