@@ -5,4 +5,4 @@ joblib
 xgboost
 pillow
 requests
-datasets
+huggingface_hub

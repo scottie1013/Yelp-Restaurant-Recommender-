@@ -736,34 +736,51 @@ def create_feature_vector(entry, user_features, business_features, tip_data, inc
     return (features, rating) if include_rating else features
 
 def get_user_samples(data_folder, num_samples=10):
-    """Get a sample of users from the user data file"""
+    """Get a sample of users from the user data file with better error handling"""
     try:
         # Load user data
         user_file = f"{data_folder}/user.json"
         users = []
         
+        if not os.path.exists(user_file) or os.path.getsize(user_file) == 0:
+            st.warning("User data file is empty or doesn't exist. Using dummy data.")
+            return [
+                {'user_id': 'dummy_user_1', 'name': 'John Doe', 'review_count': 100, 'average_stars': 4.0},
+                {'user_id': 'dummy_user_2', 'name': 'Jane Smith', 'review_count': 75, 'average_stars': 3.5},
+                {'user_id': 'dummy_user_3', 'name': 'Bob Johnson', 'review_count': 50, 'average_stars': 4.2}
+            ]
+        
         with open(user_file, 'r') as f:
             for i, line in enumerate(f):
+                if not line.strip():  # Skip empty lines
+                    continue
                 if i >= num_samples:
                     break
-                user = json.loads(line)
-                # Extract relevant user information
-                users.append({
-                    'user_id': user['user_id'],
-                    'name': user.get('name', 'Anonymous User'),
-                    'review_count': user.get('review_count', 0),
-                    'average_stars': user.get('average_stars', 0),
-                    'useful': user.get('useful', 0),
-                    'funny': user.get('funny', 0),
-                    'cool': user.get('cool', 0),
-                    'fans': user.get('fans', 0),
-                    'elite': user.get('elite', ''),
-                    'yelping_since': user.get('yelping_since', '2020-01-01')
-                })
+                try:
+                    user = json.loads(line)
+                    # Extract relevant user information
+                    users.append({
+                        'user_id': user['user_id'],
+                        'name': user.get('name', 'Anonymous User'),
+                        'review_count': user.get('review_count', 0),
+                        'average_stars': user.get('average_stars', 0),
+                        'useful': user.get('useful', 0),
+                        'funny': user.get('funny', 0),
+                        'cool': user.get('cool', 0),
+                        'fans': user.get('fans', 0),
+                        'elite': user.get('elite', ''),
+                        'yelping_since': user.get('yelping_since', '2020-01-01')
+                    })
+                except json.JSONDecodeError:
+                    continue  # Skip invalid JSON lines
         
         # Sort by review count to get more active users
         users.sort(key=lambda x: x['review_count'], reverse=True)
-        return users[:num_samples]
+        return users[:num_samples] if users else [
+            {'user_id': 'dummy_user_1', 'name': 'John Doe', 'review_count': 100, 'average_stars': 4.0},
+            {'user_id': 'dummy_user_2', 'name': 'Jane Smith', 'review_count': 75, 'average_stars': 3.5},
+            {'user_id': 'dummy_user_3', 'name': 'Bob Johnson', 'review_count': 50, 'average_stars': 4.2}
+        ]
     
     except Exception as e:
         st.error(f"Error loading user samples: {str(e)}")
@@ -933,65 +950,137 @@ def display_user_info(user):
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Replace the data loading functions with Hugging Face dataset loading
+# Replace the data loading functions with a more robust approach
 @st.cache_resource
 def load_hf_datasets():
-    """Load datasets from Hugging Face"""
+    """Load datasets from Hugging Face using direct file download"""
     try:
-        # Replace with your actual Hugging Face dataset repository
-        dataset_repo = "Shihao2/Yelp-Recommender"
+        from huggingface_hub import hf_hub_download
+        import os
         
-        # Load the datasets
-        user_dataset = load_dataset(dataset_repo, "user", split="train")
-        business_dataset = load_dataset(dataset_repo, "business", split="train")
-        tip_dataset = load_dataset(dataset_repo, "tip", split="train")
-        
-        # Create a temporary directory to store the data in the expected format
+        # Create a temporary directory
         temp_dir = tempfile.mkdtemp()
         
-        # Convert datasets to the expected file format
-        with open(f"{temp_dir}/user.json", 'w') as f:
-            for user in user_dataset:
-                f.write(json.dumps(user) + '\n')
-                
-        with open(f"{temp_dir}/business.json", 'w') as f:
-            for business in business_dataset:
-                f.write(json.dumps(business) + '\n')
-                
-        with open(f"{temp_dir}/tip.json", 'w') as f:
-            for tip in tip_dataset:
-                f.write(json.dumps(tip) + '\n')
+        # Your Hugging Face repository
+        repo_id = "Shihao2/Yelp-Recommender"
+        
+        # Try to download the files directly
+        try:
+            # Download user.json
+            user_path = hf_hub_download(
+                repo_id=repo_id,
+                filename="user.json",
+                repo_type="dataset"
+            )
+            # Copy to temp directory
+            shutil.copy(user_path, f"{temp_dir}/user.json")
+            st.success("Successfully loaded user data")
+        except Exception as e:
+            st.error(f"Error downloading user data: {str(e)}")
+            # Create empty file
+            with open(f"{temp_dir}/user.json", 'w') as f:
+                f.write("")
+        
+        try:
+            # Download business.json
+            business_path = hf_hub_download(
+                repo_id=repo_id,
+                filename="business.json",
+                repo_type="dataset"
+            )
+            # Copy to temp directory
+            shutil.copy(business_path, f"{temp_dir}/business.json")
+            st.success("Successfully loaded business data")
+        except Exception as e:
+            st.error(f"Error downloading business data: {str(e)}")
+            # Create empty file
+            with open(f"{temp_dir}/business.json", 'w') as f:
+                f.write("")
+        
+        try:
+            # Download tip.json
+            tip_path = hf_hub_download(
+                repo_id=repo_id,
+                filename="tip.json",
+                repo_type="dataset"
+            )
+            # Copy to temp directory
+            shutil.copy(tip_path, f"{temp_dir}/tip.json")
+            st.success("Successfully loaded tip data")
+        except Exception as e:
+            st.error(f"Error downloading tip data: {str(e)}")
+            # Create empty file
+            with open(f"{temp_dir}/tip.json", 'w') as f:
+                f.write("")
         
         return temp_dir
     except Exception as e:
-        st.error(f"Error loading datasets from Hugging Face: {str(e)}")
-        st.error(f"Traceback: {traceback.format_exc()}")
-        return "./data/sample"  # Fallback to local path if available
+        st.error(f"Error in load_hf_datasets: {str(e)}")
+        # Create a fallback directory with empty files
+        fallback_dir = tempfile.mkdtemp()
+        for filename in ["user.json", "business.json", "tip.json"]:
+            with open(f"{fallback_dir}/{filename}", 'w') as f:
+                f.write("")
+        return fallback_dir
 
 # Load model from Hugging Face
 @st.cache_resource
 def load_hf_model():
-    """Load model from Hugging Face"""
+    """Load model from Hugging Face using direct file download"""
     try:
-        # Replace with your actual Hugging Face model repository
-        model_repo = "YOUR_USERNAME/yelp-restaurant-model"
+        from huggingface_hub import hf_hub_download
+        import os
         
-        # Create a temporary directory for the model
+        # Create a temporary directory
         temp_dir = tempfile.mkdtemp()
         
-        # Download the model files
-        model_files = load_dataset(model_repo, split="train")
+        # Your Hugging Face repository
+        repo_id = "Shihao2/Yelp-Recommender"
         
-        # Save the model files to the temp directory
-        for file_data in model_files:
-            with open(f"{temp_dir}/{file_data['filename']}", 'wb') as f:
-                f.write(file_data['content'])
+        # Try to download the model file
+        try:
+            # Download model file - adjust filename as needed
+            model_path = hf_hub_download(
+                repo_id=repo_id,
+                filename="model.json",  # Update this to match your actual model filename
+                repo_type="dataset"
+            )
+            # Copy to temp directory
+            shutil.copy(model_path, f"{temp_dir}/model")
+            st.success("Successfully loaded model")
+        except Exception as e:
+            st.warning(f"Could not load model file: {str(e)}")
+            # Create dummy model file
+            with open(f"{temp_dir}/model", 'w') as f:
+                f.write("")
+        
+        # Try to download the scaler file
+        try:
+            # Download scaler file - adjust filename as needed
+            scaler_path = hf_hub_download(
+                repo_id=repo_id,
+                filename="model_scaler.pkl",  # Update this to match your actual scaler filename
+                repo_type="dataset"
+            )
+            # Copy to temp directory
+            shutil.copy(scaler_path, f"{temp_dir}/model_scaler.pkl")
+            st.success("Successfully loaded scaler")
+        except Exception as e:
+            st.warning(f"Could not load scaler file: {str(e)}")
+            # Create dummy scaler file
+            with open(f"{temp_dir}/model_scaler.pkl", 'w') as f:
+                f.write("")
         
         return temp_dir
     except Exception as e:
-        st.error(f"Error loading model from Hugging Face: {str(e)}")
-        st.error(f"Traceback: {traceback.format_exc()}")
-        return "./data/result/model"  # Fallback to local path if available
+        st.error(f"Error in load_hf_model: {str(e)}")
+        # Create a fallback directory with empty files
+        fallback_dir = tempfile.mkdtemp()
+        with open(f"{fallback_dir}/model", 'w') as f:
+            f.write("")
+        with open(f"{fallback_dir}/model_scaler.pkl", 'w') as f:
+            f.write("")
+        return fallback_dir
 
 # Update the main function to use the Hugging Face datasets
 def main():
