@@ -2,6 +2,8 @@
 
 # Yelp Rating Predictor
 
+Website Link: https://9qj22pj8ec9art4bykrysv.streamlit.app/ 
+
 ## Overview
 The Yelp Rating Predictor is an interactive web application that predicts how a specific user would rate a restaurant based on their past rating behavior and the characteristics of the restaurant. The application also provides personalized restaurant recommendations for users based on predicted ratings.
 
