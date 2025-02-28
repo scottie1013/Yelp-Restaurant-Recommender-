@@ -197,6 +197,23 @@ def get_random_avatar():
     except Exception as e:
         st.error(f"Error getting avatar: {str(e)}")
         return None
+    
+def hide_streamlit_elements():
+    """Hide Streamlit elements and debug messages"""
+    hide_st_style = """
+        <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            .stException, .stWarning {display: none !important;}
+            div[data-testid="stStatusWidget"] {display: none !important;}
+            div[data-testid="stDecoration"] {display: none !important;}
+            div[data-baseweb="notification"] {display: none !important;}
+        </style>
+    """
+    st.markdown(hide_st_style, unsafe_allow_html=True)
+
+# Call this function after set_page_config
+hide_streamlit_elements()
 
 # Helper function to get a random food image
 def get_random_food_image():
