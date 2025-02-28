@@ -1037,12 +1037,13 @@ def load_hf_model():
         # Your Hugging Face repository
         repo_id = "Shihao2/Yelp-Recommender"
         
-        # Try to download the model file
+        # Try to download the model file - use the exact filename from your local directory
         try:
-            # Download model file - adjust filename as needed
+            # Use the exact filename from your data/result directory
+            model_filename = "model"  # or whatever your actual filename is
             model_path = hf_hub_download(
                 repo_id=repo_id,
-                filename="model.json",  # Update this to match your actual model filename
+                filename=model_filename,
                 repo_type="dataset"
             )
             # Copy to temp directory
@@ -1056,10 +1057,11 @@ def load_hf_model():
         
         # Try to download the scaler file
         try:
-            # Download scaler file - adjust filename as needed
+            # Use the exact filename from your data/result directory
+            scaler_filename = "model_scaler.pkl"  # or whatever your actual filename is
             scaler_path = hf_hub_download(
                 repo_id=repo_id,
-                filename="model_scaler.pkl",  # Update this to match your actual scaler filename
+                filename=scaler_filename,
                 repo_type="dataset"
             )
             # Copy to temp directory
