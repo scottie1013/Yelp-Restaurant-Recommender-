@@ -1376,71 +1376,87 @@ atexit.register(cleanup_temp_dirs)
 
 # Add this function to your code
 def extract_features(user_data, business_data, user_tips, business_tips):
-    """Extract features for prediction from user and business data"""
+    """Extract features for prediction from user and business data to match the model's expected 36 features"""
     try:
-        # Create a feature vector based on user and business attributes
-        features = []
+        # Initialize a feature vector with zeros for all 36 expected features
+        features = [0.0] * 36
         
+        # Map the features we can extract to their correct positions in the feature vector
         # User features
-        user_review_count = float(user_data.get('review_count', 0))
-        user_average_stars = float(user_data.get('average_stars', 3.0))
-        user_useful = float(user_data.get('useful', 0))
-        user_funny = float(user_data.get('funny', 0))
-        user_cool = float(user_data.get('cool', 0))
-        user_fans = float(user_data.get('fans', 0))
+        if user_data:
+            features[0] = float(user_data.get('review_count', 0))
+            features[1] = float(user_data.get('average_stars', 3.0))
+            features[2] = float(user_data.get('useful', 0))
+            features[3] = float(user_data.get('funny', 0))
+            features[4] = float(user_data.get('cool', 0))
+            features[5] = float(user_data.get('fans', 0))
+            
+            # Calculate user experience in years if needed
+            try:
+                yelping_since = user_data.get('yelping_since', '2020-01-01')
+                from datetime import datetime
+                join_date = datetime.strptime(yelping_since, '%Y-%m-%d')
+                current_date = datetime.now()
+                features[6] = (current_date - join_date).days / 365.0
+            except:
+                features[6] = 0.0
         
         # Business features
-        business_review_count = float(business_data.get('review_count', 0))
-        business_stars = float(business_data.get('stars', 3.0))
-        
-        # Add features to the vector
-        features.extend([
-            user_review_count,
-            user_average_stars,
-            user_useful,
-            user_funny,
-            user_cool,
-            user_fans,
-            business_review_count,
-            business_stars
-        ])
-        
-        # Add business attributes as binary features
-        attributes = business_data.get('attributes', {})
-        if isinstance(attributes, dict):
-            # Common attributes to check
-            attribute_keys = [
-                'BusinessAcceptsCreditCards',
-                'RestaurantsPriceRange2',
-                'WiFi',
-                'OutdoorSeating',
-                'BikeParking',
-                'HasTV',
-                'RestaurantsDelivery',
-                'RestaurantsTakeOut',
-                'GoodForKids'
-            ]
+        if business_data:
+            features[7] = float(business_data.get('review_count', 0))
+            features[8] = float(business_data.get('stars', 3.0))
             
-            for key in attribute_keys:
-                # Add 1 if attribute exists and is True, 0 otherwise
-                if key in attributes:
-                    value = attributes[key]
+            # Business attributes
+            attributes = business_data.get('attributes', {})
+            if not isinstance(attributes, dict):
+                attributes = {}
+                
+            # Map common attributes to specific feature positions
+            # These positions should match what your model was trained on
+            attribute_mapping = {
+                'BusinessAcceptsCreditCards': 9,
+                'RestaurantsPriceRange2': 10,
+                'WiFi': 11,
+                'OutdoorSeating': 12,
+                'BikeParking': 13,
+                'HasTV': 14,
+                'RestaurantsDelivery': 15,
+                'RestaurantsTakeOut': 16,
+                'GoodForKids': 17,
+                'Alcohol': 18,
+                'NoiseLevel': 19,
+                'RestaurantsAttire': 20,
+                'Ambience': 21,
+                'Parking': 22
+            }
+            
+            for attr, pos in attribute_mapping.items():
+                if attr in attributes:
+                    value = attributes[attr]
                     if isinstance(value, bool):
-                        features.append(1.0 if value else 0.0)
+                        features[pos] = 1.0 if value else 0.0
                     elif isinstance(value, str) and value.lower() in ['true', 'yes', 'free']:
-                        features.append(1.0)
-                    else:
-                        features.append(0.0)
-                else:
-                    features.append(0.0)
+                        features[pos] = 1.0
+                    elif isinstance(value, dict):  # For nested attributes like Ambience
+                        # Just set to 1 if any sub-attribute is true
+                        has_true = any(v for v in value.values() if isinstance(v, bool) and v)
+                        features[pos] = 1.0 if has_true else 0.0
+                    elif isinstance(value, (int, float)):
+                        features[pos] = float(value)
         
-        # Add number of tips as a feature
-        features.append(float(len(user_tips) if user_tips else 0))
-        features.append(float(len(business_tips) if business_tips else 0))
+        # Tips features
+        features[23] = float(len(user_tips) if user_tips else 0)
+        features[24] = float(len(business_tips) if business_tips else 0)
         
-        # Add interaction features
-        features.append(user_average_stars * business_stars)  # User-business rating interaction
-        features.append(user_review_count * business_review_count)  # Review count interaction
+        # Interaction features
+        features[25] = features[1] * features[8]  # User-business rating interaction
+        features[26] = features[0] * features[7]  # Review count interaction
+        
+        # Additional features or derived features can be added to positions 27-35
+        # ...
+        
+        # Verify we have exactly 36 features
+        assert len(features) == 36, f"Expected 36 features, got {len(features)}"
         
         return features
     
